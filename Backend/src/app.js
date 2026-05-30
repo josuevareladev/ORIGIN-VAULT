@@ -7,6 +7,7 @@ const gamesRoutes = require('./routes/games.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
 const authRoutes = require('./routes/auth.routes');
 const cardsRoutes = require('./routes/cards.routes');
+const checkoutRoutes = require('./routes/checkout.routes');
 
 const app = express();
 
@@ -18,13 +19,8 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '1mb' }));
 
-// Healthcheck Route
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    message: 'Origin Vault API is active.' 
-  });
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // API Routes
@@ -32,6 +28,7 @@ app.use('/api/games', gamesRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/cards', cardsRoutes);
+app.use('/api/checkout', checkoutRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
