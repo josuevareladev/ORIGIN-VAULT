@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const gamesRoutes = require('./routes/games.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/games', gamesRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/auth', authRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
