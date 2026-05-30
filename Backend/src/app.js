@@ -4,6 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const gamesRoutes = require('./routes/games.routes');
+const inventoryRoutes = require('./routes/inventory.routes');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api/games', gamesRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
