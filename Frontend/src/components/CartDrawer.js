@@ -7,17 +7,17 @@ import { fetchAPI } from '@/lib/api';
 export default function CartDrawer({ isOpen, onClose }) {
   const { items, removeItem, updateQuantity, getCartTotal, clearCart } = useCartStore();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [checkoutStatus, setCheckoutStatus] = useState(null); // 'success' | 'error' | null
   const [errorMessage, setErrorMessage] = useState('');
+  const [paymentGateway, setPaymentGateway] = useState('stripe'); // Default gateway
 
   if (!isOpen) return null;
 
   const handleCheckout = async () => {
     setIsProcessing(true);
-    setCheckoutStatus(null);
+    setErrorMessage('');
 
-    // Format payload: The backend only needs IDs and quantities. It will calculate prices itself.
     const payload = {
+      payment_gateway: paymentGateway,
       items: items.map(item => ({
         inventory_id: item.inventory_id,
         quantity: item.quantity
@@ -25,25 +25,16 @@ export default function CartDrawer({ isOpen, onClose }) {
     };
 
     try {
-      await fetchAPI('/checkout', {
+      const response = await fetchAPI('/checkout', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
       
-      setCheckoutStatus('success');
       clearCart();
-      
-      // Auto-close drawer and reload page after a short delay to reflect new stock
-      setTimeout(() => {
-        onClose();
-        setCheckoutStatus(null);
-        window.location.reload();
-      }, 2500);
+      window.location.href = response.data.url;
 
     } catch (error) {
-      setCheckoutStatus('error');
       setErrorMessage(error.message);
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -74,24 +65,14 @@ export default function CartDrawer({ isOpen, onClose }) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {checkoutStatus === 'success' ? (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-4 animate-pulse">
-                <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500">
-                  <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-emerald-400">Transaction Sealed</h3>
-                <p className="text-slate-400 text-sm">Stock has been successfully deducted from the vault.</p>
-              </div>
-            ) : items.length === 0 ? (
+            {items.length === 0 ? (
               <div className="text-center text-slate-500 mt-10">
                 <p>The ledger is currently empty.</p>
                 <p className="text-sm mt-2">Initialize a transaction from the catalog.</p>
               </div>
             ) : (
               <>
-                {checkoutStatus === 'error' && (
+                {errorMessage && (
                   <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm font-medium mb-4">
                     {errorMessage}
                   </div>
@@ -149,8 +130,38 @@ export default function CartDrawer({ isOpen, onClose }) {
             )}
           </div>
 
-          {items.length > 0 && checkoutStatus !== 'success' && (
+          {items.length > 0 && (
             <div className="border-t border-slate-800 p-6 bg-slate-950">
+              
+              {/* Payment Gateway Selector */}
+              <div className="mb-6">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Select Payment Node</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setPaymentGateway('stripe')}
+                    disabled={isProcessing}
+                    className={`py-3 rounded-lg border flex items-center justify-center font-bold transition-all ${
+                      paymentGateway === 'stripe' 
+                        ? 'bg-slate-800 border-cyan-500 text-cyan-400' 
+                        : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-600'
+                    }`}
+                  >
+                    Credit Card
+                  </button>
+                  <button
+                    onClick={() => setPaymentGateway('paypal')}
+                    disabled={isProcessing}
+                    className={`py-3 rounded-lg border flex items-center justify-center font-bold transition-all ${
+                      paymentGateway === 'paypal' 
+                        ? 'bg-slate-800 border-emerald-500 text-emerald-400' 
+                        : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-600'
+                    }`}
+                  >
+                    PayPal
+                  </button>
+                </div>
+              </div>
+
               <div className="flex justify-between items-center mb-6">
                 <span className="text-slate-400 uppercase tracking-widest text-sm font-bold">Total Allocation</span>
                 <span className="text-2xl font-mono font-bold text-emerald-400">
@@ -161,7 +172,9 @@ export default function CartDrawer({ isOpen, onClose }) {
               <button 
                 onClick={handleCheckout}
                 disabled={isProcessing}
-                className="w-full py-4 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold rounded shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest flex justify-center items-center gap-2"
+                className={`w-full py-4 text-white font-bold rounded shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest flex justify-center items-center gap-2 ${
+                  paymentGateway === 'stripe' ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500'
+                }`}
               >
                 {isProcessing ? (
                   <>
@@ -169,10 +182,10 @@ export default function CartDrawer({ isOpen, onClose }) {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Processing Protocol...
+                    Contacting Gateway...
                   </>
                 ) : (
-                  'Confirm Transaction'
+                  `Pay securely via ${paymentGateway === 'stripe' ? 'Stripe' : 'PayPal'}`
                 )}
               </button>
             </div>
