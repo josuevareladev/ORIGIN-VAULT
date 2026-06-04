@@ -1,7 +1,6 @@
 const { pool } = require('../config/db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-// Helper function to authenticate securely with PayPal REST API
 const generatePayPalAccessToken = async () => {
   const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_SECRET}`).toString('base64');
   const response = await fetch(`${process.env.PAYPAL_API_BASE}/v1/oauth2/token`, {
@@ -27,7 +26,6 @@ const processCheckout = async (req, res, next) => {
     const { items, payment_gateway } = req.body; 
     const userId = req.user.userId; 
 
-    // Strict validation
     if (!items || items.length === 0) {
       const error = new Error('Cannot process an empty ledger.');
       error.statusCode = 400;
@@ -46,7 +44,6 @@ const processCheckout = async (req, res, next) => {
     const orderItemsData = [];
     const stripeLineItems = [];
 
-    // 1. ACID Stock Validation and Price Calculation
     for (const item of items) {
       const stockQuery = 'SELECT c.name, i.stock, i.price, i.condition, i.language FROM inventory i JOIN cards c ON i.card_id = c.id WHERE i.id = $1 FOR UPDATE'; 
       const stockResult = await client.query(stockQuery, [item.inventory_id]);
@@ -86,7 +83,6 @@ const processCheckout = async (req, res, next) => {
       }
     }
 
-    // 2. Generate the Master Order Record (Status: pending)
     const orderQuery = `
       INSERT INTO orders (user_id, total, status)
       VALUES ($1, $2, 'pending')
@@ -95,7 +91,6 @@ const processCheckout = async (req, res, next) => {
     const orderResult = await client.query(orderQuery, [userId, calculatedTotal]);
     const orderId = orderResult.rows[0].id;
 
-    // 3. Record Line Items
     for (const orderItem of orderItemsData) {
       await client.query(`
         INSERT INTO order_items (order_id, inventory_id, quantity, price_at_purchase)
@@ -103,10 +98,8 @@ const processCheckout = async (req, res, next) => {
       `, [orderId, orderItem.inventory_id, orderItem.quantity, orderItem.price]);
     }
 
-    // Commit database changes BEFORE calling external APIs to ensure our DB state is stable
     await client.query('COMMIT'); 
 
-    // 4. Financial Gateway Routing
     let paymentUrl = '';
 
     if (payment_gateway === 'stripe') {
@@ -163,7 +156,6 @@ const processCheckout = async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      message: 'Checkout session successfully generated.',
       data: { url: paymentUrl }
     });
 
@@ -175,6 +167,62 @@ const processCheckout = async (req, res, next) => {
   }
 };
 
+const finalizeOrder = async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const { order_id } = req.body;
+    
+    if (!order_id) {
+      const error = new Error('Missing order reference.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    await client.query('BEGIN');
+
+    // Bloqueamos la fila de la orden para evitar condiciones de carrera
+    const orderRes = await client.query('SELECT status FROM orders WHERE id = $1 FOR UPDATE', [order_id]);
+    
+    if (orderRes.rowCount === 0) {
+      const error = new Error('Order not found in the vault.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (orderRes.rows[0].status === 'completed') {
+      await client.query('ROLLBACK');
+      return res.status(200).json({ status: 'success', message: 'Transaction already sealed.' });
+    }
+
+    // Cambiar estado de la orden
+    await client.query("UPDATE orders SET status = 'completed' WHERE id = $1", [order_id]);
+
+    // Extraer items y descontar stock real de la bóveda
+    const itemsRes = await client.query('SELECT inventory_id, quantity FROM order_items WHERE order_id = $1', [order_id]);
+    
+    for (const item of itemsRes.rows) {
+      await client.query(
+        'UPDATE inventory SET stock = stock - $1 WHERE id = $2',
+        [item.quantity, item.inventory_id]
+      );
+    }
+
+    await client.query('COMMIT');
+    
+    res.status(200).json({ 
+      status: 'success', 
+      message: 'Transaction successfully sealed and stock deducted.' 
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    next(error);
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
-  processCheckout
+  processCheckout,
+  finalizeOrder
 };

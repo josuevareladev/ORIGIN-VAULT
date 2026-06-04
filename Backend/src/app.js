@@ -8,6 +8,7 @@ const inventoryRoutes = require('./routes/inventory.routes');
 const authRoutes = require('./routes/auth.routes');
 const cardsRoutes = require('./routes/cards.routes');
 const checkoutRoutes = require('./routes/checkout.routes');
+const ordersRoutes = require('./routes/orders.routes');
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/cards', cardsRoutes);
 app.use('/api/checkout', checkoutRoutes);
+app.use('/api/orders', ordersRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
