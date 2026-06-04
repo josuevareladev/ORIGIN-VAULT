@@ -6,18 +6,26 @@ import { useCartStore } from '@/store/useCartStore';
 import CartDrawer from '@/components/CartDrawer';
 import ExpandableArtCard from '@/components/ExpandableArtCard';
 import OrganicBreadcrumb from '@/components/OrganicBreadcrumb';
+import Link from 'next/link';
 
 export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const addItem = useCartStore((state) => state.addItem);
   const getCartCount = useCartStore((state) => state.getCartCount);
 
   useEffect(() => {
     setIsMounted(true);
+    
+    const token = localStorage.getItem('origin_vault_token');
+    if (token) {
+      setIsAuthenticated(true);
+    }
+
     const loadCatalog = async () => {
       try {
         const res = await fetchAPI('/inventory');
@@ -37,10 +45,14 @@ export default function Home() {
     setIsCartOpen(true);
   };
 
+  const handleSignOut = () => {
+    localStorage.removeItem('origin_vault_token');
+    window.location.href = '/login';
+  };
+
   return (
     <main className="min-h-screen bg-[#050B14] text-slate-200 relative selection:bg-cyan-500/30">
       
-      {/* Castelia Standard Sticky Header */}
       <header className="sticky top-0 z-40 bg-[#050B14]/80 backdrop-blur-xl border-b border-slate-800/50 supports-[backdrop-filter]:bg-[#050B14]/60 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -52,19 +64,36 @@ export default function Home() {
             </h1>
           </div>
           
-          <button 
-            onClick={() => setIsCartOpen(true)}
-            className="relative px-6 py-2 bg-slate-900/50 border border-slate-700/50 hover:border-cyan-500/50 rounded-full font-bold text-slate-300 transition-all duration-300 flex items-center gap-3 group hover:shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]"
-          >
-            <span className="uppercase tracking-widest text-[10px]">Secure Ledger</span>
-            <div className="bg-slate-800 group-hover:bg-cyan-500/20 px-2 py-1 rounded-full text-cyan-400 transition-colors text-xs font-mono">
-              {isMounted ? getCartCount() : 0}
-            </div>
-          </button>
+          <div className="flex items-center gap-4">
+            {isMounted && isAuthenticated ? (
+              <button 
+                onClick={handleSignOut}
+                className="px-4 py-2 border border-red-500/30 hover:border-red-500 text-red-400/70 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 rounded-full font-bold uppercase tracking-widest text-[10px] transition-all duration-300"
+              >
+                Sign Out
+              </button>
+            ) : isMounted ? (
+              <Link 
+                href="/login"
+                className="px-4 py-2 border border-emerald-500/30 hover:border-emerald-500 text-emerald-400/70 hover:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-full font-bold uppercase tracking-widest text-[10px] transition-all duration-300"
+              >
+                Sign In
+              </Link>
+            ) : null}
+
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative px-6 py-2 bg-slate-900/50 border border-slate-700/50 hover:border-cyan-500/50 rounded-full font-bold text-slate-300 transition-all duration-300 flex items-center gap-3 group hover:shadow-[0_0_20px_-5px_rgba(6,182,212,0.3)]"
+            >
+              <span className="uppercase tracking-widest text-[10px]">Secure Ledger</span>
+              <div className="bg-slate-800 group-hover:bg-cyan-500/20 px-2 py-1 rounded-full text-cyan-400 transition-colors text-xs font-mono">
+                {isMounted ? getCartCount() : 0}
+              </div>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main Content Arena */}
       <div className="p-8 max-w-7xl mx-auto min-h-[80vh]">
         <OrganicBreadcrumb paths={[{ label: 'Active Catalog' }]} />
 

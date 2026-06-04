@@ -19,9 +19,16 @@ export const fetchAPI = async (endpoint, options = {}) => {
     },
   });
 
-  const data = await response.json();
+  // Manejo defensivo en caso de que el backend no devuelva JSON puro en errores fatales
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    // Intercepción global: Destrucción de sesión fantasma
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('origin_vault_token');
+      window.location.href = '/login';
+    }
+    
     throw new Error(data.error?.message || 'An unexpected error occurred during the request.');
   }
 

@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth.routes');
 const cardsRoutes = require('./routes/cards.routes');
 const checkoutRoutes = require('./routes/checkout.routes');
 const ordersRoutes = require('./routes/orders.routes');
+const webhookRoutes = require('./routes/webhook.routes'); // <-- Nueva importación
 
 const app = express();
 
@@ -18,13 +19,21 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true 
 }));
+
+// ==========================================
+// RUTA CRÍTICA: WEBHOOKS
+// Debe montarse ANTES del middleware express.json()
+// ==========================================
+app.use('/api/webhooks', webhookRoutes);
+
+// Middleware global para parsear body en el resto de la aplicación
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API Routes
+// Rutas API estándar
 app.use('/api/games', gamesRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/auth', authRoutes);
@@ -32,7 +41,7 @@ app.use('/api/cards', cardsRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/orders', ordersRoutes);
 
-// Global Error Handler
+// Manejador Global de Errores
 app.use((err, req, res, next) => {
   console.error(`[System Error] ${err.message}`);
   const statusCode = err.statusCode || 500;
