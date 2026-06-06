@@ -9,15 +9,26 @@ const authRoutes = require('./routes/auth.routes');
 const cardsRoutes = require('./routes/cards.routes');
 const checkoutRoutes = require('./routes/checkout.routes');
 const ordersRoutes = require('./routes/orders.routes');
-const webhookRoutes = require('./routes/webhook.routes'); // <-- Nueva importación
+const webhookRoutes = require('./routes/webhook.routes');
 
 const app = express();
 
 app.use(helmet());
-app.use(cors({ 
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true 
+
+// Configuración de CORS dinámica y robusta para desarrollo
+app.use(cors({
+  origin: function (origin, callback) {
+    // Permitimos requests sin origin (ej. servidor a servidor, Postman) 
+    // o si provienen de localhost, 127.0.0.1 o tu red local (192.168.x.x)
+    if (!origin || /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):\d+$/.test(origin) || origin === process.env.CLIENT_URL) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS policy'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
 // ==========================================

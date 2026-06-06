@@ -66,12 +66,21 @@ export default function Home() {
           
           <div className="flex items-center gap-4">
             {isMounted && isAuthenticated ? (
-              <button 
-                onClick={handleSignOut}
-                className="px-4 py-2 border border-red-500/30 hover:border-red-500 text-red-400/70 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 rounded-full font-bold uppercase tracking-widest text-[10px] transition-all duration-300"
-              >
-                Sign Out
-              </button>
+              <>
+                {/* ESTE ES EL BOTÓN QUE FALTABA RENDERIZAR */}
+                <Link 
+                  href="/dashboard"
+                  className="px-4 py-2 border border-blue-500/30 hover:border-blue-500 text-blue-400/70 hover:text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 rounded-full font-bold uppercase tracking-widest text-[10px] transition-all duration-300"
+                >
+                  Private Ledger
+                </Link>
+                <button 
+                  onClick={handleSignOut}
+                  className="px-4 py-2 border border-red-500/30 hover:border-red-500 text-red-400/70 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 rounded-full font-bold uppercase tracking-widest text-[10px] transition-all duration-300"
+                >
+                  Sign Out
+                </button>
+              </>
             ) : isMounted ? (
               <Link 
                 href="/login"
