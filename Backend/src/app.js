@@ -10,16 +10,15 @@ const cardsRoutes = require('./routes/cards.routes');
 const checkoutRoutes = require('./routes/checkout.routes');
 const ordersRoutes = require('./routes/orders.routes');
 const webhookRoutes = require('./routes/webhook.routes');
+const adminRoutes = require('./routes/admin.routes'); // <-- Ruta Admin conectada
 
 const app = express();
 
 app.use(helmet());
 
-// Configuración de CORS dinámica y robusta para desarrollo
+// Configuración de CORS
 app.use(cors({
   origin: function (origin, callback) {
-    // Permitimos requests sin origin (ej. servidor a servidor, Postman) 
-    // o si provienen de localhost, 127.0.0.1 o tu red local (192.168.x.x)
     if (!origin || /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):\d+$/.test(origin) || origin === process.env.CLIENT_URL) {
       callback(null, true);
     } else {
@@ -31,13 +30,8 @@ app.use(cors({
   credentials: true
 }));
 
-// ==========================================
-// RUTA CRÍTICA: WEBHOOKS
-// Debe montarse ANTES del middleware express.json()
-// ==========================================
 app.use('/api/webhooks', webhookRoutes);
 
-// Middleware global para parsear body en el resto de la aplicación
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (req, res) => {
@@ -51,6 +45,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/cards', cardsRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/orders', ordersRoutes);
+
+// Ruta API protegida de Administrador
+app.use('/api/admin', adminRoutes); // <-- Montada en el servidor
 
 // Manejador Global de Errores
 app.use((err, req, res, next) => {

@@ -34,6 +34,31 @@ const requireAuth = (req, res, next) => {
   }
 };
 
+const requireAdmin = (req, res, next) => {
+  // Manejo defensivo: Garantiza que requireAdmin siempre se ejecute DESPUÉS de requireAuth
+  if (!req.user) {
+    return res.status(401).json({
+      error: {
+        message: 'Authentication context missing. Pipeline order error.',
+        code: 'UNAUTHORIZED'
+      }
+    });
+  }
+
+  // Validación estricta de privilegios.
+  if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') {
+    return res.status(403).json({
+      error: {
+        message: 'Access denied. Administrative clearance required.',
+        code: 'FORBIDDEN_ACCESS'
+      }
+    });
+  }
+
+  next();
+};
+
 module.exports = {
-  requireAuth
+  requireAuth,
+  requireAdmin
 };
